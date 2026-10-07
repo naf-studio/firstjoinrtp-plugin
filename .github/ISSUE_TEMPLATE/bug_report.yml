@@ -1,0 +1,40 @@
+name: "Bug Report"
+description: "Report a bug, exception, or teleportation issue in the plugin"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide the details requested below.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the issue encountered.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Server Environment
+      description: Server software, Minecraft version, and Java version (e.g. Paper 1.21.1, Java 21).
+      placeholder: "Paper 1.21.1 / Java 21"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Specific steps to reproduce the observed behavior.
+      placeholder: |
+        1. Join server with a new player account
+        2. Enter the configured target world
+        3. Observe teleport or command behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server Console Logs
+      description: Paste relevant server logs or exception traces.
+      render: shell
