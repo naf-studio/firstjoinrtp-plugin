@@ -2,7 +2,7 @@
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.20.4--1.20.6_%7C_1.21.x_%7C_26.x-brightgreen.svg)](https://papermc.io/)
 [![Java](https://img.shields.io/badge/Java-17_--_25-orange.svg)](https://adoptium.net/)
-[![Modrinth](https://img.shields.io/badge/Modrinth-FirstJoinRTP-00AF5C?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/firstjoinrtp)
+[![Modrinth](https://img.shields.io/badge/Modrinth-FirstJoinRTP-00AF5C?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/naf-firstjoinrtp-plugin)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Lightweight Bukkit/Paper plugin that safely teleports new players to a random location upon their first join into a designated world and executes configurable commands to register their spawnpoint or home. Designed for compatibility across Spigot, Paper, Purpur, Gale, and LeafMC servers supporting Minecraft 1.20.4–1.20.6, 1.21.x, and 26.x.
@@ -135,7 +135,7 @@ On Windows:
 .\mvnw.cmd clean package
 ```
 
-The compiled artifact will be generated at `target/FirstJoinRTP-1.6.jar`.
+The compiled artifact will be generated at `target/FirstJoinRTP-1.7.jar`.
 
 ---
 

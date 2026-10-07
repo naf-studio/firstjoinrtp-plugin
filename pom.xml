@@ -6,7 +6,7 @@
 
     <groupId>com.naipret</groupId>
     <artifactId>FirstJoinRTP</artifactId>
-    <version>1.6</version>
+    <version>1.7</version>
     <name>FirstJoinRTP</name>
     <description>Lightweight Bukkit/Paper plugin providing safe first-join RTP and spawnpoint setup.</description>
     <url>https://github.com/naf-studio/firstjoinrtp-plugin</url>
