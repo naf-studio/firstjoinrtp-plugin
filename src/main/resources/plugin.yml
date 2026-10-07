@@ -1,5 +1,8 @@
 name: FirstJoinRTP
 version: "${project.version}"
 main: com.naipret.firstjoinrtp.FirstJoinRTP
-api-version: "1.21"
-description: Teleport new players to a random location when they first join and finish logging in.
+api-version: "1.20"
+description: Lightweight Bukkit/Paper plugin providing safe first-join RTP and spawnpoint setup.
+author: naipret
+website: https://github.com/naf-studio/firstjoinrtp-plugin
+folia-supported: false
