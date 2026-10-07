@@ -6,3 +6,15 @@ description: Lightweight Bukkit/Paper plugin providing safe first-join RTP and s
 author: naipret
 website: https://github.com/naf-studio/firstjoinrtp-plugin
 folia-supported: false
+
+commands:
+  firstjoinrtp:
+    description: Manage FirstJoinRTP configuration.
+    aliases: [fjrtp]
+    permission: firstjoinrtp.admin
+    usage: /<command> reload
+
+permissions:
+  firstjoinrtp.admin:
+    description: Allows reloading the FirstJoinRTP configuration.
+    default: op
