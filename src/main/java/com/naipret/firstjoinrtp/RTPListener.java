@@ -30,13 +30,13 @@ public class RTPListener implements Listener {
     private final Set<UUID> pendingRtp = new HashSet<>();
     private final Set<UUID> inRtpProcess = new HashSet<>();
 
-    private final String targetWorld;
-    private final boolean rtpCommandEnabled;
-    private final String rtpCommand;
-    private final boolean spawnpointCommandEnabled;
-    private final String spawnpointCommand;
-    private final boolean saveSpawnpoint;
-    private final long delayAfterTp;
+    private String targetWorld;
+    private boolean rtpCommandEnabled;
+    private String rtpCommand;
+    private boolean spawnpointCommandEnabled;
+    private String spawnpointCommand;
+    private boolean saveSpawnpoint;
+    private long delayAfterTp;
 
     /**
      * Constructs the listener and loads configuration properties.
@@ -45,6 +45,13 @@ public class RTPListener implements Listener {
      */
     public RTPListener(FirstJoinRTP plugin) {
         this.plugin = plugin;
+        reloadConfig();
+    }
+
+    /**
+     * Reloads configuration properties from disk.
+     */
+    public void reloadConfig() {
         this.targetWorld = plugin.getConfig().getString("target-world", "world");
         this.rtpCommandEnabled = plugin.getConfig().getBoolean("rtp-command-enabled", true);
         this.rtpCommand = plugin.getConfig().getString("rtp-command",
@@ -59,12 +66,26 @@ public class RTPListener implements Listener {
 
     /**
      * Handles player join events to trigger RTP if entering target world directly.
+     * Also hides any players currently in RTP process from the newly joined player.
      *
      * @param event The player join event.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+
+        for (UUID activeUuid : inRtpProcess) {
+            Player activePlayer = Bukkit.getPlayer(activeUuid);
+            if (activePlayer != null && activePlayer.isOnline() && !activePlayer.equals(player)) {
+                player.hidePlayer(plugin, activePlayer);
+            }
+        }
+        for (UUID activeUuid : pendingRtp) {
+            Player activePlayer = Bukkit.getPlayer(activeUuid);
+            if (activePlayer != null && activePlayer.isOnline() && !activePlayer.equals(player)) {
+                player.hidePlayer(plugin, activePlayer);
+            }
+        }
 
         if (hasCompletedRTP(player)) {
             return;
@@ -135,7 +156,9 @@ public class RTPListener implements Listener {
         pendingRtp.add(uuid);
 
         for (Player other : Bukkit.getOnlinePlayers()) {
-            other.hidePlayer(plugin, player);
+            if (!other.equals(player)) {
+                other.hidePlayer(plugin, player);
+            }
         }
 
         new BukkitRunnable() {
@@ -157,7 +180,9 @@ public class RTPListener implements Listener {
 
                                 if (player.isOnline()) {
                                     for (Player other : Bukkit.getOnlinePlayers()) {
-                                        other.showPlayer(plugin, player);
+                                        if (!other.equals(player)) {
+                                            other.showPlayer(plugin, player);
+                                        }
                                     }
                                 }
                             }
@@ -175,68 +200,61 @@ public class RTPListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
+        Location to = event.getTo();
+        if (to == null || to.getWorld() == null) {
+            return;
+        }
+
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
-        if (inRtpProcess.contains(uuid)) {
-            if (event.getFrom().getWorld() != null
-                    && event.getFrom().getWorld().equals(event.getTo().getWorld())
-                    && event.getFrom().distanceSquared(event.getTo()) < 100) {
-                return;
+        if (!inRtpProcess.contains(uuid)) {
+            return;
+        }
+
+        Location from = event.getFrom();
+        if (from.getWorld() != null
+                && from.getWorld().equals(to.getWorld())
+                && from.distanceSquared(to) < 100) {
+            return;
+        }
+
+        if (to.getWorld().getName().equalsIgnoreCase(targetWorld)
+                && (event.getCause() == PlayerTeleportEvent.TeleportCause.COMMAND
+                        || event.getCause() == PlayerTeleportEvent.TeleportCause.PLUGIN
+                        || event.getCause() == PlayerTeleportEvent.TeleportCause.UNKNOWN)) {
+
+            if (spawnpointCommandEnabled && spawnpointCommand != null
+                    && !spawnpointCommand.trim().isEmpty()) {
+                dispatchCustomCommand(player, spawnpointCommand, to);
+                plugin.getLogger().info("RTP completed for " + player.getName()
+                        + ". Executed spawnpoint command: " + spawnpointCommand);
+            } else if (saveSpawnpoint) {
+                player.setRespawnLocation(to, true);
+                plugin.getLogger().info("RTP completed for " + player.getName()
+                        + ". Native spawnpoint registered.");
             }
 
-            if (event.getTo() != null
-                    && event.getTo().getWorld() != null
-                    && event.getTo().getWorld().getName().equalsIgnoreCase(targetWorld)
-                    && (event.getCause() == PlayerTeleportEvent.TeleportCause.COMMAND
-                            || event.getCause() == PlayerTeleportEvent.TeleportCause.PLUGIN
-                            || event.getCause() == PlayerTeleportEvent.TeleportCause.UNKNOWN)) {
+            markCompletedRTP(player);
 
-                Location newLoc = event.getTo();
-
-                boolean hasNewConfig = plugin.getConfig().contains("spawnpoint-command-enabled")
-                        || plugin.getConfig().contains("spawnpoint-command");
-
-                if (hasNewConfig) {
-                    if (spawnpointCommandEnabled && spawnpointCommand != null
-                            && !spawnpointCommand.trim().isEmpty()) {
-                        dispatchCustomCommand(player, spawnpointCommand, newLoc);
-                        plugin.getLogger().info("RTP completed for " + player.getName()
-                                + ". Executed spawnpoint command: " + spawnpointCommand);
-                    } else {
-                        plugin.getLogger().info("RTP completed for " + player.getName()
-                                + " (spawnpoint command disabled).");
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (!player.isOnline()) {
+                        inRtpProcess.remove(uuid);
+                        return;
                     }
-                } else {
-                    if (saveSpawnpoint) {
-                        player.setRespawnLocation(newLoc, true);
-                        plugin.getLogger().info("RTP completed for " + player.getName()
-                                + ". Native spawnpoint registered.");
-                    } else {
-                        plugin.getLogger().info("RTP completed for " + player.getName()
-                                + " (native spawnpoint disabled).");
-                    }
-                }
 
-                markCompletedRTP(player);
-
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        if (!player.isOnline()) {
-                            inRtpProcess.remove(uuid);
-                            return;
-                        }
-
-                        for (Player other : Bukkit.getOnlinePlayers()) {
+                    for (Player other : Bukkit.getOnlinePlayers()) {
+                        if (!other.equals(player)) {
                             other.showPlayer(plugin, player);
                         }
-
-                        inRtpProcess.remove(uuid);
-                        plugin.getLogger().info("Safety period concluded for " + player.getName() + ".");
                     }
-                }.runTaskLater(plugin, delayAfterTp);
-            }
+
+                    inRtpProcess.remove(uuid);
+                    plugin.getLogger().info("Safety period concluded for " + player.getName() + ".");
+                }
+            }.runTaskLater(plugin, delayAfterTp);
         }
     }
 
@@ -245,7 +263,7 @@ public class RTPListener implements Listener {
      *
      * @param event The entity damage event.
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player) {
             if (inRtpProcess.contains(player.getUniqueId()) || pendingRtp.contains(player.getUniqueId())) {
@@ -259,7 +277,7 @@ public class RTPListener implements Listener {
      *
      * @param event The entity target event.
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityTarget(EntityTargetLivingEntityEvent event) {
         if (event.getTarget() instanceof Player player) {
             if (inRtpProcess.contains(player.getUniqueId()) || pendingRtp.contains(player.getUniqueId())) {
@@ -299,7 +317,7 @@ public class RTPListener implements Listener {
 
         String worldName = (loc != null && loc.getWorld() != null)
                 ? loc.getWorld().getName()
-                : targetWorld;
+                : (player.getWorld() != null ? player.getWorld().getName() : targetWorld);
 
         command = command.replace("%player%", player.getName())
                 .replace("%world%", worldName);
@@ -316,9 +334,29 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Clears tracking sets on plugin shutdown.
+     * Restores visibility to any hidden players and clears tracking sets on plugin shutdown.
      */
     public void cleanup() {
+        for (UUID uuid : inRtpProcess) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline()) {
+                for (Player other : Bukkit.getOnlinePlayers()) {
+                    if (!other.equals(p)) {
+                        other.showPlayer(plugin, p);
+                    }
+                }
+            }
+        }
+        for (UUID uuid : pendingRtp) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline()) {
+                for (Player other : Bukkit.getOnlinePlayers()) {
+                    if (!other.equals(p)) {
+                        other.showPlayer(plugin, p);
+                    }
+                }
+            }
+        }
         inRtpProcess.clear();
         pendingRtp.clear();
     }
