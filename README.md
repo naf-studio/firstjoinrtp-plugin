@@ -59,7 +59,7 @@ firstjoinrtp-plugin/
 - Supports downstream authentication setups (e.g., Limbo or Lobby servers) by intercepting world-change transitions into the survival world.
 - Executes configurable commands at the landing location to assign native spawnpoints or external homes (e.g., vanilla `/spawnpoint` or CMI `/cmi sethome`).
 - Protects players from fall damage, suffocation, and hostile mob targeting during chunk loading.
-- Reverts visibility and restores interaction states gracefully upon completion or safety timeouts.
+- Reverts visibility and restores interaction states gracefully upon completion, safety timeouts, or server reloads.
 
 ---
 
@@ -97,17 +97,25 @@ delay-after-teleport-ticks: 20
 
 ---
 
-## 5. Installation
+## 5. Commands & Permissions
+
+| Command | Permission | Description |
+|---|---|---|
+| `/firstjoinrtp reload` | `firstjoinrtp.admin` | Reloads configuration from disk (`aliases: [/fjrtp]`). |
+
+---
+
+## 6. Installation
 
 1. Download the latest `FirstJoinRTP.jar` from [Modrinth](https://modrinth.com/plugin/firstjoinrtp) or [GitHub Releases](https://github.com/naf-studio/firstjoinrtp-plugin/releases).
 2. Place the `.jar` file into your server's `plugins/` directory.
 3. Restart the server to generate `plugins/FirstJoinRTP/config.yml`.
 4. Configure teleport commands according to your server setup.
-5. Reload or restart the server to apply configuration changes.
+5. Use `/firstjoinrtp reload` or restart the server to apply configuration changes.
 
 ---
 
-## 6. Building from Source
+## 7. Building from Source
 
 ### Prerequisites
 
@@ -131,12 +139,12 @@ The compiled artifact will be generated at `target/FirstJoinRTP-1.6.jar`.
 
 ---
 
-## 7. Contributing
+## 8. Contributing
 
 Contributions must follow the standards outlined in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## 8. License
+## 9. License
 
 This project is licensed under the [MIT License](LICENSE). Copyright &copy; 2026 [naipret](https://github.com/naipret).
