@@ -8,34 +8,28 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Listens for events to manage the first-join RTP process for new players. It waits for the player
- * to enter a specific world, triggers an RTP, and secures their safety during the chunk loading
- * period.
+ * Event listener managing the first-join random teleportation lifecycle.
+ * Coordinates safety periods, teleport execution, and spawnpoint assignment.
  */
 public class RTPListener implements Listener {
 
     private final FirstJoinRTP plugin;
 
-    // Players currently in the 10-tick delay before the RTP command is dispatched
     private final Set<UUID> pendingRtp = new HashSet<>();
-
-    // Players who have entered the target world and triggered the RTP, but haven't finished
-    // teleporting yet
     private final Set<UUID> inRtpProcess = new HashSet<>();
 
-    // Configuration values
     private final String targetWorld;
     private final boolean rtpCommandEnabled;
     private final String rtpCommand;
@@ -45,9 +39,9 @@ public class RTPListener implements Listener {
     private final long delayAfterTp;
 
     /**
-     * Constructs a new RTPListener with configuration values loaded.
+     * Constructs the listener and loads configuration properties.
      *
-     * @param plugin The main plugin instance
+     * @param plugin The parent plugin instance.
      */
     public RTPListener(FirstJoinRTP plugin) {
         this.plugin = plugin;
@@ -64,31 +58,35 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Checks when a player joins the server. If they join directly into the target world, start
-     * RTP. If they join a Limbo/Lobby world, we wait for PlayerChangedWorldEvent.
+     * Handles player join events to trigger RTP if entering target world directly.
+     *
+     * @param event The player join event.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        if (hasCompletedRTP(player))
+        if (hasCompletedRTP(player)) {
             return;
+        }
 
-        // If they bypass Limbo and spawn directly into the target world
         if (player.getWorld().getName().equalsIgnoreCase(targetWorld)) {
             prepareRTP(player);
         }
     }
 
     /**
-     * Listens for players moving between worlds (e.g., leaving a Login Limbo).
+     * Handles world transition events to catch players leaving login limbos or lobbies.
+     *
+     * @param event The world change event.
      */
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onPlayerChangeWorld(org.bukkit.event.player.PlayerChangedWorldEvent event) {
+    public void onPlayerChangeWorld(PlayerChangedWorldEvent event) {
         Player player = event.getPlayer();
 
-        if (hasCompletedRTP(player))
+        if (hasCompletedRTP(player)) {
             return;
+        }
 
         if (player.getWorld().getName().equalsIgnoreCase(targetWorld)) {
             prepareRTP(player);
@@ -96,10 +94,10 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Checks if a player has the RTP completed tag in their PersistentDataContainer.
+     * Evaluates whether a player has completed first-join teleportation.
      *
-     * @param player The player to check
-     * @return true if the player has already successfully undergone RTP natively.
+     * @param player The target player.
+     * @return True if already completed, false otherwise.
      */
     private boolean hasCompletedRTP(Player player) {
         Byte val = player.getPersistentDataContainer().get(plugin.getRtpCompletedKey(),
@@ -108,9 +106,9 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Marks a player as having explicitly completed the RTP process.
+     * Persists the RTP completion flag into player data container.
      *
-     * @param player The player to tag
+     * @param player The target player.
      */
     private void markCompletedRTP(Player player) {
         player.getPersistentDataContainer().set(plugin.getRtpCompletedKey(),
@@ -118,10 +116,9 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Prepares the player for RTP: hides them, makes them invulnerable, executes the command, and
-     * starts a timeout safeguard.
+     * Hides the player, assigns invulnerability, and schedules teleport command dispatch.
      *
-     * @param player The player to prepare
+     * @param player The player entering first-join sequence.
      */
     private void prepareRTP(Player player) {
         if (!rtpCommandEnabled) {
@@ -129,42 +126,34 @@ public class RTPListener implements Listener {
         }
 
         UUID uuid = player.getUniqueId();
-
-        // Prevent double execution during delay or active RTP
-        if (pendingRtp.contains(uuid) || inRtpProcess.contains(uuid))
+        if (pendingRtp.contains(uuid) || inRtpProcess.contains(uuid)) {
             return;
+        }
 
-        plugin.getLogger().info("Player " + player.getName() + " entered " + targetWorld
-                + ". Hiding and preparing RTP...");
-
+        plugin.getLogger().info("Initiating first-join RTP sequence for " + player.getName()
+                + " in " + targetWorld + ".");
         pendingRtp.add(uuid);
 
         for (Player other : Bukkit.getOnlinePlayers()) {
             other.hidePlayer(plugin, player);
         }
 
-        // Small delay to guarantee they are fully inserted in the world before executing RTP
         new BukkitRunnable() {
             @Override
             public void run() {
                 pendingRtp.remove(uuid);
 
                 if (player.isOnline()) {
-                    // Only start capturing teleports now to avoid catching other plugins' initial
-                    // positioning teleports
                     inRtpProcess.add(uuid);
                     dispatchCustomCommand(player, rtpCommand, null);
 
-                    // TIMEOUT SAFEGUARD: 15 seconds (300 ticks) from execution
-                    // If RTP command fails, they would otherwise be stuck invisible and
-                    // invulnerable forever.
                     new BukkitRunnable() {
                         @Override
                         public void run() {
                             if (inRtpProcess.contains(uuid)) {
                                 inRtpProcess.remove(uuid);
-                                plugin.getLogger().warning("TIMEOUT: RTP for " + player.getName()
-                                        + " took too long or failed! Reverting visibility.");
+                                plugin.getLogger().warning("RTP timeout reached for " + player.getName()
+                                        + ". Restoring visibility.");
 
                                 if (player.isOnline()) {
                                     for (Player other : Bukkit.getOnlinePlayers()) {
@@ -180,7 +169,9 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Listens for teleports to capture the RTP destination and set the player's spawnpoint there.
+     * Intercepts teleport completions to record landing locations and set spawnpoints.
+     *
+     * @param event The player teleport event.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
@@ -188,25 +179,21 @@ public class RTPListener implements Listener {
         UUID uuid = player.getUniqueId();
 
         if (inRtpProcess.contains(uuid)) {
-            // Distance check to ignore false positives from micro teleports
-            if (event.getFrom().getWorld().equals(event.getTo().getWorld())
+            if (event.getFrom().getWorld() != null
+                    && event.getFrom().getWorld().equals(event.getTo().getWorld())
                     && event.getFrom().distanceSquared(event.getTo()) < 100) {
                 return;
             }
 
-            // We assume teleport causes like COMMAND, PLUGIN, or UNKNOWN might be the RTP
-            // execution.
-            // Explicitly ensure the destination world matches the target world to avoid false
-            // positives.
-            if (event.getTo().getWorld().getName().equalsIgnoreCase(targetWorld)
+            if (event.getTo() != null
+                    && event.getTo().getWorld() != null
+                    && event.getTo().getWorld().getName().equalsIgnoreCase(targetWorld)
                     && (event.getCause() == PlayerTeleportEvent.TeleportCause.COMMAND
                             || event.getCause() == PlayerTeleportEvent.TeleportCause.PLUGIN
                             || event.getCause() == PlayerTeleportEvent.TeleportCause.UNKNOWN)) {
 
                 Location newLoc = event.getTo();
 
-                // Determine whether to execute spawnpoint command, set native spawnpoint, or do
-                // nothing
                 boolean hasNewConfig = plugin.getConfig().contains("spawnpoint-command-enabled")
                         || plugin.getConfig().contains("spawnpoint-command");
 
@@ -214,47 +201,39 @@ public class RTPListener implements Listener {
                     if (spawnpointCommandEnabled && spawnpointCommand != null
                             && !spawnpointCommand.trim().isEmpty()) {
                         dispatchCustomCommand(player, spawnpointCommand, newLoc);
-                        plugin.getLogger().info("RTP successful for " + player.getName()
-                                + ", executed spawnpoint command: " + spawnpointCommand);
+                        plugin.getLogger().info("RTP completed for " + player.getName()
+                                + ". Executed spawnpoint command: " + spawnpointCommand);
                     } else {
-                        plugin.getLogger().info("RTP successful for " + player.getName()
-                                + " (spawnpoint command is disabled or empty).");
+                        plugin.getLogger().info("RTP completed for " + player.getName()
+                                + " (spawnpoint command disabled).");
                     }
                 } else {
-                    // Backwards compatibility for older configs
                     if (saveSpawnpoint) {
                         player.setRespawnLocation(newLoc, true);
-                        plugin.getLogger().info("RTP successful for " + player.getName()
-                                + ", spawnpoint set natively.");
+                        plugin.getLogger().info("RTP completed for " + player.getName()
+                                + ". Native spawnpoint registered.");
                     } else {
-                        plugin.getLogger().info("RTP successful for " + player.getName()
-                                + " (native spawnpoint is disabled).");
+                        plugin.getLogger().info("RTP completed for " + player.getName()
+                                + " (native spawnpoint disabled).");
                     }
                 }
 
-                // Tag the player to prevent future automatic RTPs
                 markCompletedRTP(player);
 
-                // Use the configured delay to ensure the client has loaded chunks before unhiding
-                // them
                 new BukkitRunnable() {
                     @Override
                     public void run() {
-                        // Prevent potential crashes if the player logs out right after TP
                         if (!player.isOnline()) {
                             inRtpProcess.remove(uuid);
                             return;
                         }
 
-                        // Make the player visible to everyone else again
                         for (Player other : Bukkit.getOnlinePlayers()) {
                             other.showPlayer(plugin, player);
                         }
 
                         inRtpProcess.remove(uuid);
-
-                        plugin.getLogger()
-                                .info("Safety period ended for " + player.getName() + ".");
+                        plugin.getLogger().info("Safety period concluded for " + player.getName() + ".");
                     }
                 }.runTaskLater(plugin, delayAfterTp);
             }
@@ -262,34 +241,37 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Ensures players in the RTP process are completely invulnerable to damage. E.g. fall damage or
-     * suffocation because chunks haven't completely loaded.
+     * Prevents damage to players undergoing teleportation or safety periods.
+     *
+     * @param event The entity damage event.
      */
     @EventHandler
     public void onEntityDamage(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Player) {
-            Player player = (Player) event.getEntity();
-            if (inRtpProcess.contains(player.getUniqueId())) {
+        if (event.getEntity() instanceof Player player) {
+            if (inRtpProcess.contains(player.getUniqueId()) || pendingRtp.contains(player.getUniqueId())) {
                 event.setCancelled(true);
             }
         }
     }
 
     /**
-     * Prevents mobs from targeting players that are going through the RTP process.
+     * Prevents entities from targeting players undergoing teleportation or safety periods.
+     *
+     * @param event The entity target event.
      */
     @EventHandler
     public void onEntityTarget(EntityTargetLivingEntityEvent event) {
-        if (event.getTarget() instanceof Player) {
-            Player player = (Player) event.getTarget();
-            if (inRtpProcess.contains(player.getUniqueId())) {
+        if (event.getTarget() instanceof Player player) {
+            if (inRtpProcess.contains(player.getUniqueId()) || pendingRtp.contains(player.getUniqueId())) {
                 event.setCancelled(true);
             }
         }
     }
 
     /**
-     * Cleans up tasks when a player logs off.
+     * Cleans up tracking collections when players disconnect.
+     *
+     * @param event The player quit event.
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
@@ -299,11 +281,11 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Replaces placeholders and executes a command from the console.
+     * Interpolates placeholder values and dispatches command via console sender.
      *
-     * @param player The target player
-     * @param rawCommand The raw command string from configuration
-     * @param loc The landing location (can be null for RTP command)
+     * @param player The subject player.
+     * @param rawCommand Raw command template.
+     * @param loc Teleport destination location.
      */
     private void dispatchCustomCommand(Player player, String rawCommand, Location loc) {
         if (rawCommand == null || rawCommand.trim().isEmpty()) {
@@ -311,22 +293,22 @@ public class RTPListener implements Listener {
         }
 
         String command = rawCommand.trim();
-
-        // Strip leading slash if present
         if (command.startsWith("/")) {
             command = command.substring(1).trim();
         }
 
-        // Replace placeholders
-        String worldName =
-                (loc != null && loc.getWorld() != null) ? loc.getWorld().getName() : targetWorld;
-        command = command.replace("%player%", player.getName()).replace("%world%", worldName);
+        String worldName = (loc != null && loc.getWorld() != null)
+                ? loc.getWorld().getName()
+                : targetWorld;
+
+        command = command.replace("%player%", player.getName())
+                .replace("%world%", worldName);
 
         if (loc != null) {
             command = command.replace("%x%", String.valueOf(loc.getBlockX()))
                     .replace("%y%", String.valueOf(loc.getBlockY()))
-                    .replace("%z%", String.valueOf(loc.getBlockZ()));
-            command = command.replace("%yaw%", String.valueOf(Math.round(loc.getYaw())))
+                    .replace("%z%", String.valueOf(loc.getBlockZ()))
+                    .replace("%yaw%", String.valueOf(Math.round(loc.getYaw())))
                     .replace("%pitch%", String.valueOf(Math.round(loc.getPitch())));
         }
 
@@ -334,7 +316,7 @@ public class RTPListener implements Listener {
     }
 
     /**
-     * Cleans up all running tasks and clears collections. Safe to call on plugin disable.
+     * Clears tracking sets on plugin shutdown.
      */
     public void cleanup() {
         inRtpProcess.clear();
