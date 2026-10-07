@@ -107,7 +107,7 @@ delay-after-teleport-ticks: 20
 
 ## 6. Installation
 
-1. Download the latest `FirstJoinRTP.jar` from [Modrinth](https://modrinth.com/plugin/firstjoinrtp) or [GitHub Releases](https://github.com/naf-studio/firstjoinrtp-plugin/releases).
+1. Download the latest `FirstJoinRTP.jar` from [Modrinth](https://modrinth.com/plugin/naf-firstjoinrtp-plugin) or [GitHub Releases](https://github.com/naf-studio/firstjoinrtp-plugin/releases).
 2. Place the `.jar` file into your server's `plugins/` directory.
 3. Restart the server to generate `plugins/FirstJoinRTP/config.yml`.
 4. Configure teleport commands according to your server setup.
