@@ -1,11 +1,11 @@
 # NAF Studio - FirstJoinRTP Plugin
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.20.4_--_1.21.x-brightgreen.svg)](https://papermc.io/)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.20.4--1.20.6_%7C_1.21.x_%7C_26.x-brightgreen.svg)](https://papermc.io/)
 [![Java](https://img.shields.io/badge/Java-17_--_25-orange.svg)](https://adoptium.net/)
 [![Modrinth](https://img.shields.io/badge/Modrinth-FirstJoinRTP-00AF5C?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/firstjoinrtp)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Lightweight Bukkit/Paper plugin that safely teleports new players to a random location upon their first join into a designated world and executes configurable commands to register their spawnpoint or home. Designed for compatibility across Spigot, Paper, Purpur, Gale, and LeafMC servers.
+Lightweight Bukkit/Paper plugin that safely teleports new players to a random location upon their first join into a designated world and executes configurable commands to register their spawnpoint or home. Designed for compatibility across Spigot, Paper, Purpur, Gale, and LeafMC servers supporting Minecraft 1.20.4–1.20.6, 1.21.x, and 26.x.
 
 ---
 
@@ -38,7 +38,7 @@ firstjoinrtp-plugin/
 
 - Standardizes on the Spigot API abstraction to guarantee binary compatibility across Spigot, Paper, Purpur, Gale, and LeafMC without vendor lock-in.
 - Targets Java 17 bytecode format (`--release 17`), enabling out-of-the-box operation on Java 17, Java 21, and Java 25 environments.
-- Declares `api-version: 1.20` in `plugin.yml`, allowing clean loading on Minecraft 1.20.4, 1.20.5, 1.20.6, and 1.21.x servers without version rejection warnings.
+- Declares `api-version: 1.20` in `plugin.yml`, allowing clean loading on Minecraft 1.20.4–1.20.6, 1.21.x, and 26.x servers without version rejection warnings.
 - Tracks player first-join status using native Bukkit `PersistentDataContainer` with namespaced keys, eliminating the need for external databases or flat-file storage.
 - Shields players during chunk loading and teleport dispatch by applying temporary invulnerability, hiding visibility, and cancelling mob targeting across both pending and active stages.
 - Bundles the official Maven Wrapper (`mvnw`, `mvnw.cmd`), allowing compilation on any system with a JDK installed without requiring global Maven installation.
@@ -47,7 +47,7 @@ firstjoinrtp-plugin/
 
 ## 2. Compatibility & Supported Platforms
 
-- Minecraft Versions: 1.20.4, 1.20.5, 1.20.6, 1.21, 1.21.1, 1.21.2, 1.21.3, 1.21.4+
+- Minecraft Versions: 1.20.4–1.20.6, 1.21.x (1.21–1.21.11), and 26.x (26.1, 26.2, 26.3)
 - Server Software: Spigot, Paper, Purpur, Gale, LeafMC, and downstream Bukkit forks
 - Java Runtimes: OpenJDK 17, 21, and 25
 

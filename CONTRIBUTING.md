@@ -69,7 +69,7 @@ All commit messages must adhere to the Conventional Commits specification:
 
 ## 4. Minecraft Architecture & Compatibility Principles
 
-- Maintain the Spigot API abstraction as the primary dependency, ensuring out-of-the-box support across Spigot, Paper, Purpur, Gale, and LeafMC servers running Minecraft 1.20.4 through 1.21.x.
+- Maintain the Spigot API abstraction as the primary dependency, ensuring out-of-the-box support across Spigot, Paper, Purpur, Gale, and LeafMC servers running Minecraft 1.20.4–1.20.6, 1.21.x, and 26.x.
 - Always check `player.isOnline()` in delayed runnables to avoid operating on disconnected sessions.
 - Ensure all tracking sets and scheduled tasks are properly flushed in `onDisable()` to prevent memory leaks during server reloads.
 - Utilize Bukkit's native `PersistentDataContainer` with namespaced keys rather than external file persistence for player teleport status.
